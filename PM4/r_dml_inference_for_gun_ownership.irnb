@@ -1,0 +1,1500 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "a19sSgshu-SA",
+        "papermill": {
+          "duration": 0.024906,
+          "end_time": "2021-07-23T16:17:55.704014",
+          "exception": false,
+          "start_time": "2021-07-23T16:17:55.679108",
+          "status": "completed"
+        },
+        "tags": []
+      },
+      "source": [
+        "# A Case Study: The Effect of Gun Ownership on Gun-Homicide Rates"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "R4ZopCRVu-SA",
+        "papermill": {
+          "duration": 0.024533,
+          "end_time": "2021-07-23T16:17:55.753444",
+          "exception": false,
+          "start_time": "2021-07-23T16:17:55.728911",
+          "status": "completed"
+        },
+        "tags": []
+      },
+      "source": [
+        "We consider the problem of estimating the effect of gun ownership on the homicide rate. For this purpose, we perform inference on $\\beta$ in the following the partially linear model:\n",
+        "$$\n",
+        "Y_{j, t}=\\beta D_{j,(t-1)}+g\\left(X_{j, t}, \\bar{X}_j, \\bar{X}_t, X_{j, 0}, Y_{j, 0}, t\\right)+\\epsilon_{j, t}\n",
+        "$$\n",
+        "$Y_{j, t}$ is the log homicide rate in county $j$ at time $t. D_{j, t-1}$ is the log fraction of suicides committed with a firearm in county $j$ at time $t-1$, which we use as a proxy for gun ownership $G_{j, t}$, which is not observed. $X_{j, t}$ is a set of demographic and economic characteristics of county $j$ at time $t$. We use $\\bar{X}_j$ to denote the within county average of $X_{j, t}$ and $\\bar{X}_t$ to denote the within time period average of $X_{j, t} . X_{j, 0}$ and $Y_{j, 0}$ denote initial conditions in county $j$. We use $Z_{j, t}$ to denote the set of observed control variables $\\left\\{X_{j, t}, \\bar{X}_j, \\bar{X}_t, X_{j, 0}, Y_{j, 0}, t\\right\\}$, so that our model is\n",
+        "\n",
+        "$$\n",
+        " Y_{i,t} = \\beta D_{i,(t-1)} + g(Z_{i,t}) + \\epsilon_{i,t}.\n",
+        "$$"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "ubu-QI2Ju-SB",
+        "papermill": {
+          "duration": 0.024711,
+          "end_time": "2021-07-23T16:17:55.803109",
+          "exception": false,
+          "start_time": "2021-07-23T16:17:55.778398",
+          "status": "completed"
+        },
+        "tags": []
+      },
+      "source": [
+        "## Data"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "fV3y0eiCu-SB",
+        "papermill": {
+          "duration": 0.025115,
+          "end_time": "2021-07-23T16:17:55.854426",
+          "exception": false,
+          "start_time": "2021-07-23T16:17:55.829311",
+          "status": "completed"
+        },
+        "tags": []
+      },
+      "source": [
+        "$Y_{j,t}$ is the log homicide rate in county $j$ at time $t$, $D_{j, t-1}$ is the log fraction of suicides committed with a firearm in county $j$ at time $t-1$, which we use as a proxy for gun ownership,  and  $Z_{j,t}$ is a set of demographic and economic characteristics of county $j$ at time $t$. Assuming the firearm suicide rate is a good proxy for gun ownership, the parameter $\\beta$ is the effect of gun ownership on homicide rates, controlling for county-level demographic and economic characteristics.\n",
+        "\n",
+        "The sample covers 195 large United States counties between the years 1980 through 1999, giving us 3900 observations."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 1,
+      "metadata": {
+        "id": "nIdoZ226yN1a",
+        "vscode": {
+          "languageId": "r"
+        },
+        "outputId": "2c911f4d-1484-4382-b87d-a3990e3d6c05",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Installing package into ‘/usr/local/lib/R/site-library’\n",
+            "(as ‘lib’ is unspecified)\n",
+            "\n",
+            "also installing the dependencies ‘iterators’, ‘foreach’, ‘shape’, ‘RcppEigen’\n",
+            "\n",
+            "\n",
+            "Installing package into ‘/usr/local/lib/R/site-library’\n",
+            "(as ‘lib’ is unspecified)\n",
+            "\n",
+            "Installing package into ‘/usr/local/lib/R/site-library’\n",
+            "(as ‘lib’ is unspecified)\n",
+            "\n",
+            "Installing package into ‘/usr/local/lib/R/site-library’\n",
+            "(as ‘lib’ is unspecified)\n",
+            "\n",
+            "also installing the dependencies ‘RcppTOML’, ‘here’, ‘png’, ‘config’, ‘tfautograph’, ‘reticulate’, ‘tensorflow’, ‘tfruns’, ‘zeallot’\n",
+            "\n",
+            "\n",
+            "Installing package into ‘/usr/local/lib/R/site-library’\n",
+            "(as ‘lib’ is unspecified)\n",
+            "\n",
+            "Installing package into ‘/usr/local/lib/R/site-library’\n",
+            "(as ‘lib’ is unspecified)\n",
+            "\n",
+            "Installing package into ‘/usr/local/lib/R/site-library’\n",
+            "(as ‘lib’ is unspecified)\n",
+            "\n",
+            "Installing package into ‘/usr/local/lib/R/site-library’\n",
+            "(as ‘lib’ is unspecified)\n",
+            "\n",
+            "also installing the dependency ‘zoo’\n",
+            "\n",
+            "\n"
+          ]
+        }
+      ],
+      "source": [
+        "install.packages(\"glmnet\")\n",
+        "install.packages(\"randomForest\")\n",
+        "install.packages(\"xgboost\")\n",
+        "install.packages(\"keras\")\n",
+        "install.packages(\"tensorflow\")\n",
+        "install.packages(\"xtable\")\n",
+        "install.packages(\"dplyr\")\n",
+        "install.packages(\"sandwich\")"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 2,
+      "metadata": {
+        "vscode": {
+          "languageId": "r"
+        },
+        "id": "BJBPihGQCzvi",
+        "outputId": "be832119-bf48-45fe-a6c4-3120ce780783",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Loading required package: Matrix\n",
+            "\n",
+            "Loaded glmnet 4.1-8\n",
+            "\n",
+            "randomForest 4.7-1.2\n",
+            "\n",
+            "Type rfNews() to see new features/changes/bug fixes.\n",
+            "\n",
+            "\n",
+            "Attaching package: ‘dplyr’\n",
+            "\n",
+            "\n",
+            "The following object is masked from ‘package:xgboost’:\n",
+            "\n",
+            "    slice\n",
+            "\n",
+            "\n",
+            "The following object is masked from ‘package:randomForest’:\n",
+            "\n",
+            "    combine\n",
+            "\n",
+            "\n",
+            "The following objects are masked from ‘package:stats’:\n",
+            "\n",
+            "    filter, lag\n",
+            "\n",
+            "\n",
+            "The following objects are masked from ‘package:base’:\n",
+            "\n",
+            "    intersect, setdiff, setequal, union\n",
+            "\n",
+            "\n"
+          ]
+        }
+      ],
+      "source": [
+        "library(glmnet)\n",
+        "library(randomForest)\n",
+        "library(xgboost)\n",
+        "library(keras)\n",
+        "library(tensorflow)\n",
+        "library(xtable)\n",
+        "library(dplyr)\n",
+        "library(sandwich)"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 3,
+      "metadata": {
+        "id": "WHTx8goy46e9",
+        "vscode": {
+          "languageId": "r"
+        },
+        "outputId": "ef4e7ee7-4326-4266-e26c-66f298ea51c7",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 54
+        }
+      },
+      "outputs": [
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/html": [
+              "<style>\n",
+              ".list-inline {list-style: none; margin:0; padding: 0}\n",
+              ".list-inline>li {display: inline-block}\n",
+              ".list-inline>li:not(:last-child)::after {content: \"\\00b7\"; padding: 0 .5ex}\n",
+              "</style>\n",
+              "<ol class=list-inline><li>3900</li><li>415</li></ol>\n"
+            ],
+            "text/markdown": "1. 3900\n2. 415\n\n\n",
+            "text/latex": "\\begin{enumerate*}\n\\item 3900\n\\item 415\n\\end{enumerate*}\n",
+            "text/plain": [
+              "[1] 3900  415"
+            ]
+          },
+          "metadata": {}
+        }
+      ],
+      "source": [
+        "file <- \"https://raw.githubusercontent.com/CausalAIBook/MetricsMLNotebooks/main/data/gun_clean.csv\"\n",
+        "data <- read.csv(file)\n",
+        "dim(data)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "TkxefAQ7u-SD",
+        "papermill": {
+          "duration": 0.025977,
+          "end_time": "2021-07-23T16:17:57.064860",
+          "exception": false,
+          "start_time": "2021-07-23T16:17:57.038883",
+          "status": "completed"
+        },
+        "tags": []
+      },
+      "source": [
+        "## Preprocessing\n",
+        "\n",
+        "To attempt to flexibly account for fixed heterogeneity across counties, common time factors, and deterministic time trends, we include county-level averages, time period averages, initial conditions, and the time index as additional control variables. This strategy is related to strategies for addressing latent sources of heterogeneity via conditioning."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "FR0sUlnYu-SD",
+        "papermill": {
+          "duration": 0.024998,
+          "end_time": "2021-07-23T16:17:57.115009",
+          "exception": false,
+          "start_time": "2021-07-23T16:17:57.090011",
+          "status": "completed"
+        },
+        "tags": []
+      },
+      "source": [
+        "We first reweight time and county variables as the data are population weighted."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 4,
+      "metadata": {
+        "id": "no2XXU9F460B",
+        "vscode": {
+          "languageId": "r"
+        }
+      },
+      "outputs": [],
+      "source": [
+        "# Note: These data are population weighted. Specifically,\n",
+        "# looking at the JBES replication files, they seem to be multiplied\n",
+        "# by sqrt((1/T sum_t population_{j,t})/100000). To get the\n",
+        "# unweighted variables need to divide by this number - which we can\n",
+        "# get from the time effects. We are mostly just going to use the weighted\n",
+        "# variables as inputs - except for time and county. We'll take\n",
+        "# cross-sectional and time series means of these weighted variables\n",
+        "# as well. Note that there is nothing wrong with this, but it does not\n",
+        "# reproduce a weighted regression in a setting where covariates may\n",
+        "# enter nonlinearly and flexibly.\n",
+        "\n",
+        "## County FE\n",
+        "county_vars <- select(data, starts_with(\"X_J\"))\n",
+        "\n",
+        "## Time variables and population weights\n",
+        "# Pull out time variables\n",
+        "time_vars <- select(data, starts_with(\"X_T\"))\n",
+        "\n",
+        "# Use these to construct population weights\n",
+        "pop_weights <- rowSums(time_vars)\n",
+        "\n",
+        "# Unweighted time variables\n",
+        "time_vars <- time_vars / pop_weights\n",
+        "\n",
+        "# For any columns with only zero (like the first one), just drop\n",
+        "time_vars <- time_vars[, colSums(time_vars != 0) > 0]\n",
+        "\n",
+        "# Create time index\n",
+        "time_ind <- rowSums(time_vars * (seq(1:20)))"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "pKPGeFnurGys"
+      },
+      "source": [
+        "Now we create initial conditions, county-level averages, and time period averages."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 5,
+      "metadata": {
+        "id": "0yv3j0wJ464e",
+        "vscode": {
+          "languageId": "r"
+        }
+      },
+      "outputs": [],
+      "source": [
+        "###### Create new data frame with variables we'll use\n",
+        "\n",
+        "# Function to find variable names\n",
+        "var_list <- function(df = NULL, type = c(\"numeric\", \"factor\", \"character\"), pattern = \"\", exclude = NULL) {\n",
+        "  vars <- character(0)\n",
+        "  if (any(type %in% \"numeric\")) {\n",
+        "    vars <- c(vars, names(df)[sapply(df, is.numeric)])\n",
+        "  }\n",
+        "  if (any(type %in% \"factor\")) {\n",
+        "    vars <- c(vars, names(df)[sapply(df, is.factor)])\n",
+        "  }\n",
+        "  if (any(type %in% \"character\")) {\n",
+        "    vars <- c(vars, names(df)[sapply(df, is.character)])\n",
+        "  }\n",
+        "  vars[(!vars %in% exclude) & grepl(vars, pattern = pattern)]\n",
+        "}\n",
+        "\n",
+        "# census control variables\n",
+        "census <- NULL\n",
+        "census_var <- c(\"^AGE\", \"^BN\", \"^BP\", \"^BZ\", \"^ED\", \"^EL\", \"^HI\", \"^HS\", \"^INC\", \"^LF\", \"^LN\",\n",
+        "                \"^PI\", \"^PO\", \"^PP\", \"^PV\", \"^SPR\", \"^VS\")\n",
+        "\n",
+        "for (i in seq_along(census_var)) {\n",
+        "  census <- append(census, var_list(data, pattern = census_var[i]))\n",
+        "}\n",
+        "\n",
+        "# other control variables\n",
+        "X1 <- c(\"logrobr\", \"logburg\", \"burg_missing\", \"robrate_missing\")\n",
+        "X2 <- c(\"newblack\", \"newfhh\", \"newmove\", \"newdens\", \"newmal\")\n",
+        "\n",
+        "# \"treatment\" variable\n",
+        "d <- \"logfssl\"\n",
+        "\n",
+        "# outcome variable\n",
+        "y <- \"logghomr\"\n",
+        "\n",
+        "# new data frame for time index\n",
+        "usedata <- as.data.frame(time_ind)\n",
+        "colnames(usedata) <- \"time_ind\"\n",
+        "usedata[, \"weights\"] <- pop_weights\n",
+        "\n",
+        "var_list <- c(y, d, X1, X2, census)\n",
+        "for (i in seq_along(var_list)) {\n",
+        "  usedata[, var_list[i]] <- data[, var_list[i]]\n",
+        "}\n",
+        "\n",
+        "####################### Construct county specific means,\n",
+        "# time specific means, initial conditions\n",
+        "\n",
+        "# Initial conditions\n",
+        "var_list0 <- c(y, X1, X2, census)\n",
+        "for (i in seq_along(var_list0)) {\n",
+        "  usedata[, paste(var_list0[i], \"0\", sep = \"\")] <- kronecker(\n",
+        "    usedata[time_ind == 1, var_list0[i]],\n",
+        "    rep(1, 20)\n",
+        "  )\n",
+        "}\n",
+        "\n",
+        "# County means\n",
+        "var_list_j <- c(X1, X2, census)\n",
+        "county_vars <- as.matrix(county_vars)\n",
+        "for (i in seq_along(var_list_j)) {\n",
+        "  usedata[, paste(var_list_j[i], \"J\", sep = \"\")] <-\n",
+        "    county_vars %*% qr.solve(county_vars, as.matrix(usedata[, var_list_j[i]]))\n",
+        "}\n",
+        "\n",
+        "# Time means\n",
+        "time_vars <- as.matrix(time_vars)\n",
+        "for (i in seq_along(var_list_j)) {\n",
+        "  usedata[, paste(var_list_j[i], \"T\", sep = \"\")] <-\n",
+        "    time_vars %*% qr.solve(time_vars, as.matrix(usedata[, var_list_j[i]]))\n",
+        "}"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "s7ngh8j2u-SF",
+        "papermill": {
+          "duration": 0.02615,
+          "end_time": "2021-07-23T16:18:24.461261",
+          "exception": false,
+          "start_time": "2021-07-23T16:18:24.435111",
+          "status": "completed"
+        },
+        "tags": []
+      },
+      "source": [
+        "# Estimation\n",
+        "\n"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "d-qK9imxu-SF",
+        "papermill": {
+          "duration": 0.02615,
+          "end_time": "2021-07-23T16:18:24.513673",
+          "exception": false,
+          "start_time": "2021-07-23T16:18:24.487523",
+          "status": "completed"
+        },
+        "tags": []
+      },
+      "source": [
+        "## Baseline OLS Estimates"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "tiBCuqUdu-SG",
+        "papermill": {
+          "duration": 0.027888,
+          "end_time": "2021-07-23T16:18:24.568278",
+          "exception": false,
+          "start_time": "2021-07-23T16:18:24.540390",
+          "status": "completed"
+        },
+        "tags": []
+      },
+      "source": [
+        "After preprocessing the data, as a baseline model, we first look at simple regression of $Y_{j,t}$ on $D_{j,t-1}$ without controls in the full data set."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 6,
+      "metadata": {
+        "id": "yX0GRnnlryxu",
+        "vscode": {
+          "languageId": "r"
+        },
+        "outputId": "a0740f54-f456-41ad-9ed5-284e28626a6e",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Baseline OLS: 0.3020234  ( 0.01256572 )\n",
+            "2.5%:  0.2773874 97.5%:  0.3266594"
+          ]
+        }
+      ],
+      "source": [
+        "# Simple regression\n",
+        "lm0 <- lm(logghomr ~ logfssl, data = usedata)\n",
+        "vc0 <- vcovHC(lm0)\n",
+        "cat(\"Baseline OLS:\", lm0$coefficients[2], \" (\", sqrt(vc0[2, 2]), \")\\n\")\n",
+        "# Confidence Interval with HC3 covariance\n",
+        "tt <- qt(c(0.025, 0.975), summary(lm0)$df[2])\n",
+        "se <- sqrt(diag(vc0))\n",
+        "ci <- coef(lm0) + se %o% tt\n",
+        "cat(\"2.5%: \", ci[2, 1], \"97.5%: \", ci[2, 2])"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "WfcEZxr7rxB2"
+      },
+      "source": [
+        "The point estimate is $0.302$ with the confidence interval ranging from 0.277 to 0.327. This\n",
+        "suggests that increases in gun ownership rates are related to gun homicide rates - if gun ownership increases by 1% then the predicted gun homicide rate goes up by 0.3%, without controlling for counties' characteristics.\n",
+        "\n"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "SCc5D-QhNIsG"
+      },
+      "source": [
+        "Next we estimate with the baseline set of controls."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 7,
+      "metadata": {
+        "id": "ljFlAr5Isjzd",
+        "vscode": {
+          "languageId": "r"
+        },
+        "outputId": "49174db7-3399-4c2a-c188-7ed9e020e904",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "OLS with Controls: 0.30487  ( 0.07289379 )\n"
+          ]
+        }
+      ],
+      "source": [
+        "# Regression on baseline controls\n",
+        "var_list <- c(d, X1, X2, census)\n",
+        "lmC <- lm(paste(\"logghomr ~\", paste(var_list, collapse = \"+\")), data = usedata)\n",
+        "vcC <- vcovHC(lmC)\n",
+        "cat(\"OLS with Controls:\", lmC$coefficients[\"logfssl\"], \" (\", sqrt(vcC[\"logfssl\", \"logfssl\"]), \")\\n\")"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "e-b9PUBBs2rE"
+      },
+      "source": [
+        "<!-- Since our goal is to estimate the effect of gun ownership after controlling for a rich set county characteristics, we next include time and space averages. -->\n",
+        "\n",
+        "We can also run our regression with time and space averages as controls."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 8,
+      "metadata": {
+        "id": "iOFCWtUKyFK2",
+        "vscode": {
+          "languageId": "r"
+        },
+        "outputId": "6666e320-5bf7-4913-8b91-84c14eab2522",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "OLS with Averages: 0.1557919  ( 0.06479634 )\n"
+          ]
+        }
+      ],
+      "source": [
+        "# Regression on time and cross sectional averages\n",
+        "var_list_x <- c(X1, X2, census)\n",
+        "var_list_means <- c(d, X1, X2, census)\n",
+        "for (i in seq_along(var_list_x)) {\n",
+        "  var_list_means <- c(var_list_means, paste(var_list_x[i], \"J\", sep = \"\"))\n",
+        "}\n",
+        "for (i in seq_along(var_list_x)) {\n",
+        "  var_list_means <- c(var_list_means, paste(var_list_x[i], \"T\", sep = \"\"))\n",
+        "}\n",
+        "lmM <- lm(paste(\"logghomr ~\", paste(var_list_means, collapse = \"+\")), data = usedata)\n",
+        "vcM <- vcovHC(lmM)\n",
+        "cat(\"OLS with Averages:\", lmM$coefficients[\"logfssl\"], \" (\", sqrt(vcM[\"logfssl\", \"logfssl\"]), \")\\n\")"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "EdhH_81itPev"
+      },
+      "source": [
+        "Since our goal is to estimate the effect of gun ownership after controlling for a rich set county characteristics, we now include all controls."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 9,
+      "metadata": {
+        "id": "wBMWYpbBtKzy",
+        "vscode": {
+          "languageId": "r"
+        },
+        "outputId": "3abbfe19-2062-4ea7-d276-3bfed2a6c689",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "OLS All: 0.1789128  ( 0.06509867 )\n"
+          ]
+        }
+      ],
+      "source": [
+        "# Regression on all controls\n",
+        "lmA <- lm(logghomr ~ ., data = usedata)\n",
+        "vcA <- vcovHC(lmA)\n",
+        "cat(\"OLS All:\", lmA$coefficients[\"logfssl\"], \" (\", sqrt(vcA[\"logfssl\", \"logfssl\"]), \")\\n\")"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "b60ollfHydRw"
+      },
+      "source": [
+        "After controlling for a rich set of characteristics, the point estimate of gun ownership attenuates to 0.179.\n",
+        "\n",
+        "***NB***: In the background, `lm()` is dropping variables based on collinearity diagnostics. These depend on system linear algebra routines and can lead to large differences in high-dimensional or other ill-conditioned settings when using otherwise identical code across languages and/or machines.\n",
+        "\n",
+        "Now we turn to our double machine learning framework, employing linear and flexible estimation methods with cross-fitting."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "702RF417z6-1"
+      },
+      "source": [
+        "## DML Estimates\n",
+        "\n",
+        "We perform inference on $\\beta$ in the following the partially linear model:\n",
+        " $$\n",
+        "Y_{j, t}=\\beta D_{j,(t-1)}+g(Z_{j,t})+\\epsilon_{j, t}.\n",
+        "$$\n",
+        "In the first stage, using cross-fitting, we employ modern regression methods to build estimators $\\hat \\ell(Z_{j,t})$ and $\\hat m(Z_{j,t})$, where\n",
+        "- $\\ell(Z_{j,t}):=E(Y_{j,t}|Z_{j,t})$\n",
+        "- $m(Z_{j,t}):=E(D_{j,t}|Z_{j,t})$\n",
+        "\n",
+        "Using these, we obtain the estimates of the residualized quantities\n",
+        "- $\\tilde Y_{j,t} = Y_{j,t}- E(Y_{j,t}|Z_{j,t})$\n",
+        "- $\\tilde D_{j,t}= D_{j,t}- E(D_{j,t}|Z_{j,t})$\n",
+        "\n",
+        "Using these residualized quantities, we note our model can be written as\n",
+        "$$\n",
+        "\\tilde Y_{j,t} = \\beta \\tilde D_{j,t} + \\epsilon_{j,t}, \\quad E (\\epsilon_{j,t} |\\tilde D_{j,t}) =0.\n",
+        "$$\n",
+        "In the final stage, using ordinary least squares of $\\tilde Y_{j,t}$ on $\\tilde D_{j,t}$, we obtain the\n",
+        "estimate of $\\beta$."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "Y1rLIZVx1LNv"
+      },
+      "source": [
+        "In the following, we consider 10 different methods for the first-stage models for $\\ell(\\cdot)$ and $m(\\cdot)$ covering linear, penalized linear, and flexible methods. We also report the first-stage RMSE scores for estimating $Y$ and $D$."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Problem 10\n",
+        "set.seed(123)\n",
+        "\n",
+        "num_rows <- nrow(usedata)\n",
+        "num_folds <- 2 # Number of cross-fitting folds\n",
+        "sample_frame <- rep(1:num_folds, ceiling(num_rows / num_folds))\n",
+        "cross_fitting_groups <- sample(sample_frame, size = num_rows, replace = FALSE)\n",
+        "\n",
+        "n_models <- 12\n",
+        "yhat_r <- matrix(NA, num_rows, n_models)\n",
+        "dhat_r <- matrix(NA, num_rows, n_models)"
+      ],
+      "metadata": {
+        "id": "xDsfawbtcWau"
+      },
+      "execution_count": 13,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Cross-fitting loop\n",
+        "for (k in 1:Kf) {\n",
+        "  cat(\"fold: \", k, \"\\n\")\n",
+        "  indk <- cvgroup == k\n",
+        "\n",
+        "  ktrain <- usedata[!indk, ]\n",
+        "  ktest <- usedata[indk, ]\n",
+        "\n",
+        "  #### Simple regression models ####\n",
+        "\n",
+        "  # Simple regression\n",
+        "  yhat_r[indk, 1] <- ktest$logghomr - mean(ktrain$logghomr)\n",
+        "  dhat_r[indk, 1] <- ktest$logfssl - mean(ktrain$logfssl)\n",
+        "}"
+      ],
+      "metadata": {
+        "id": "2zLE8CZLcYfn",
+        "outputId": "18ea3d93-aac6-4697-ec0c-cf848fed3d2d",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 14,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "fold:  1 \n",
+            "fold:  2 \n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "for (k in 1:num_folds) {\n",
+        "  cat(\"fold: \", k, \"\\n\")\n",
+        "  indk <- cross_fitting_groups == k\n",
+        "\n",
+        "  ktrain <- usedata[!indk, ]\n",
+        "  ktest <- usedata[indk, ]\n",
+        "\n",
+        "  # Regression with Controls\n",
+        "  lmyk_a <- lm(logghomr ~ . - logfssl, data = ktrain)\n",
+        "  yhat_r[indk, 2] <- ktest$logghomr - predict(lmyk_a, ktest)\n",
+        "  lmdk_a <- lm(logfssl ~ . - logghomr, data = ktrain)\n",
+        "  dhat_r[indk, 2] <- ktest$logfssl - predict(lmdk_a, ktest)\n",
+        "}\n"
+      ],
+      "metadata": {
+        "id": "9vBWkfl5caZO",
+        "outputId": "d50eda94-a69f-45e0-9998-39dead50cb09",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 15,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "fold:  1 \n",
+            "fold:  2 \n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "for (k in 1:num_folds) {\n",
+        "  cat(\"fold: \", k, \"\\n\")\n",
+        "  indk <- cross_fitting_groups == k\n",
+        "\n",
+        "  ktrain <- usedata[!indk, ]\n",
+        "  ktest <- usedata[indk, ]\n",
+        "\n",
+        "  ytrain <- as.matrix(usedata[!indk, \"logghomr\"])\n",
+        "  dtrain <- as.matrix(usedata[!indk, \"logfssl\"])\n",
+        "  xtrain <- as.matrix(usedata[!indk, !names(usedata) %in%\n",
+        "                                c(\"logghomr\", \"logfssl\")])\n",
+        "  ytest <- as.matrix(usedata[indk, \"logghomr\"])\n",
+        "  dtest <- as.matrix(usedata[indk, \"logfssl\"])\n",
+        "  xtest <- as.matrix(usedata[indk, !names(usedata) %in%\n",
+        "                               c(\"logghomr\", \"logfssl\")])\n",
+        "\n",
+        "  lassoyk <- cv.glmnet(xtrain, ytrain)\n",
+        "  yhat_r[indk, 3] <- ytest - predict(lassoyk, newx = xtest, s = \"lambda.min\")\n",
+        "\n",
+        "  lassodk <- cv.glmnet(xtrain, dtrain)\n",
+        "  dhat_r[indk, 3] <- dtest - predict(lassodk, newx = xtest, s = \"lambda.min\")\n",
+        "  }"
+      ],
+      "metadata": {
+        "id": "m4COL_UQcnl4",
+        "outputId": "556bc0e3-18f7-45d5-c7a9-3df17a04798e",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 16,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "fold:  1 \n",
+            "fold:  2 \n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "for (k in 1:num_folds) {\n",
+        "  cat(\"fold: \", k, \"\\n\")\n",
+        "  indk <- cross_fitting_groups == k\n",
+        "\n",
+        "  ktrain <- usedata[!indk, ]\n",
+        "  ktest <- usedata[indk, ]\n",
+        "\n",
+        "  ridgeyk <- cv.glmnet(xtrain, ytrain, alpha = 0)\n",
+        "  yhat_r[indk, 4] <- ytest - predict(ridgeyk, newx = xtest, s = \"lambda.min\")\n",
+        "\n",
+        "  ridgedk <- cv.glmnet(xtrain, dtrain, alpha = 0)\n",
+        "  dhat_r[indk, 4] <- dtest - predict(ridgedk, newx = xtest, s = \"lambda.min\")\n",
+        "\n",
+        "  # EN, .5 - no cv over alpha\n",
+        "  enyk <- cv.glmnet(xtrain, ytrain, alpha = .5)\n",
+        "  yhat_r[indk, 5] <- ytest - predict(enyk, newx = xtest, s = \"lambda.min\")\n",
+        "\n",
+        "  endk <- cv.glmnet(xtrain, dtrain, alpha = .5)\n",
+        "  dhat_r[indk, 5] <- dtest - predict(endk, newx = xtest, s = \"lambda.min\")\n",
+        "\n",
+        "  }"
+      ],
+      "metadata": {
+        "id": "NSASG80fcw0V",
+        "outputId": "cb5e4b22-5391-4c41-c68b-b7ece9553681",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 17,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "fold:  1 \n",
+            "fold:  2 \n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "remove.packages(\"keras\")\n",
+        "install.packages(\"keras3\") # or remotes::install_github(\"rstudio/keras\")\n",
+        "\n",
+        "library(keras3)"
+      ],
+      "metadata": {
+        "id": "jU0PqnVqeIHJ",
+        "outputId": "96f8a6fd-6805-4025-bdc0-0f607720bae9",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 19,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Removing package from ‘/usr/local/lib/R/site-library’\n",
+            "(as ‘lib’ is unspecified)\n",
+            "\n",
+            "Installing package into ‘/usr/local/lib/R/site-library’\n",
+            "(as ‘lib’ is unspecified)\n",
+            "\n",
+            "Registered S3 methods overwritten by 'keras3':\n",
+            "  method                               from \n",
+            "  as.data.frame.keras_training_history keras\n",
+            "  plot.keras_training_history          keras\n",
+            "  print.keras_training_history         keras\n",
+            "  r_to_py.R6ClassGenerator             keras\n",
+            "\n",
+            "\n",
+            "Attaching package: ‘keras3’\n",
+            "\n",
+            "\n",
+            "The following objects are masked from ‘package:tensorflow’:\n",
+            "\n",
+            "    set_random_seed, shape\n",
+            "\n",
+            "\n",
+            "The following objects are masked from ‘package:keras’:\n",
+            "\n",
+            "    %<-active%, %py_class%, activation_elu, activation_exponential,\n",
+            "    activation_gelu, activation_hard_sigmoid, activation_linear,\n",
+            "    activation_relu, activation_selu, activation_sigmoid,\n",
+            "    activation_softmax, activation_softplus, activation_softsign,\n",
+            "    activation_tanh, adapt, application_densenet121,\n",
+            "    application_densenet169, application_densenet201,\n",
+            "    application_efficientnet_b0, application_efficientnet_b1,\n",
+            "    application_efficientnet_b2, application_efficientnet_b3,\n",
+            "    application_efficientnet_b4, application_efficientnet_b5,\n",
+            "    application_efficientnet_b6, application_efficientnet_b7,\n",
+            "    application_inception_resnet_v2, application_inception_v3,\n",
+            "    application_mobilenet, application_mobilenet_v2,\n",
+            "    application_mobilenet_v3_large, application_mobilenet_v3_small,\n",
+            "    application_nasnetlarge, application_nasnetmobile,\n",
+            "    application_resnet101, application_resnet101_v2,\n",
+            "    application_resnet152, application_resnet152_v2,\n",
+            "    application_resnet50, application_resnet50_v2, application_vgg16,\n",
+            "    application_vgg19, application_xception, bidirectional,\n",
+            "    callback_backup_and_restore, callback_csv_logger,\n",
+            "    callback_early_stopping, callback_lambda,\n",
+            "    callback_learning_rate_scheduler, callback_model_checkpoint,\n",
+            "    callback_reduce_lr_on_plateau, callback_remote_monitor,\n",
+            "    callback_tensorboard, clone_model, constraint_maxnorm,\n",
+            "    constraint_minmaxnorm, constraint_nonneg, constraint_unitnorm,\n",
+            "    count_params, custom_metric, dataset_boston_housing,\n",
+            "    dataset_cifar10, dataset_cifar100, dataset_fashion_mnist,\n",
+            "    dataset_imdb, dataset_imdb_word_index, dataset_mnist,\n",
+            "    dataset_reuters, dataset_reuters_word_index, freeze_weights,\n",
+            "    from_config, get_config, get_file, get_layer, get_vocabulary,\n",
+            "    get_weights, image_array_save, image_dataset_from_directory,\n",
+            "    image_load, image_to_array, imagenet_decode_predictions,\n",
+            "    imagenet_preprocess_input, initializer_constant,\n",
+            "    initializer_glorot_normal, initializer_glorot_uniform,\n",
+            "    initializer_he_normal, initializer_he_uniform,\n",
+            "    initializer_identity, initializer_lecun_normal,\n",
+            "    initializer_lecun_uniform, initializer_ones,\n",
+            "    initializer_orthogonal, initializer_random_normal,\n",
+            "    initializer_random_uniform, initializer_truncated_normal,\n",
+            "    initializer_variance_scaling, initializer_zeros, install_keras,\n",
+            "    keras, keras_model, keras_model_sequential, Layer,\n",
+            "    layer_activation, layer_activation_elu,\n",
+            "    layer_activation_leaky_relu, layer_activation_parametric_relu,\n",
+            "    layer_activation_relu, layer_activation_softmax,\n",
+            "    layer_activity_regularization, layer_add, layer_additive_attention,\n",
+            "    layer_alpha_dropout, layer_attention, layer_average,\n",
+            "    layer_average_pooling_1d, layer_average_pooling_2d,\n",
+            "    layer_average_pooling_3d, layer_batch_normalization,\n",
+            "    layer_category_encoding, layer_center_crop, layer_concatenate,\n",
+            "    layer_conv_1d, layer_conv_1d_transpose, layer_conv_2d,\n",
+            "    layer_conv_2d_transpose, layer_conv_3d, layer_conv_3d_transpose,\n",
+            "    layer_conv_lstm_1d, layer_conv_lstm_2d, layer_conv_lstm_3d,\n",
+            "    layer_cropping_1d, layer_cropping_2d, layer_cropping_3d,\n",
+            "    layer_dense, layer_depthwise_conv_1d, layer_depthwise_conv_2d,\n",
+            "    layer_discretization, layer_dot, layer_dropout, layer_embedding,\n",
+            "    layer_flatten, layer_gaussian_dropout, layer_gaussian_noise,\n",
+            "    layer_global_average_pooling_1d, layer_global_average_pooling_2d,\n",
+            "    layer_global_average_pooling_3d, layer_global_max_pooling_1d,\n",
+            "    layer_global_max_pooling_2d, layer_global_max_pooling_3d,\n",
+            "    layer_gru, layer_hashing, layer_input, layer_integer_lookup,\n",
+            "    layer_lambda, layer_layer_normalization, layer_lstm, layer_masking,\n",
+            "    layer_max_pooling_1d, layer_max_pooling_2d, layer_max_pooling_3d,\n",
+            "    layer_maximum, layer_minimum, layer_multi_head_attention,\n",
+            "    layer_multiply, layer_normalization, layer_permute,\n",
+            "    layer_random_brightness, layer_random_contrast, layer_random_crop,\n",
+            "    layer_random_flip, layer_random_rotation, layer_random_translation,\n",
+            "    layer_random_zoom, layer_repeat_vector, layer_rescaling,\n",
+            "    layer_reshape, layer_resizing, layer_rnn, layer_separable_conv_1d,\n",
+            "    layer_separable_conv_2d, layer_simple_rnn,\n",
+            "    layer_spatial_dropout_1d, layer_spatial_dropout_2d,\n",
+            "    layer_spatial_dropout_3d, layer_string_lookup, layer_subtract,\n",
+            "    layer_text_vectorization, layer_unit_normalization,\n",
+            "    layer_upsampling_1d, layer_upsampling_2d, layer_upsampling_3d,\n",
+            "    layer_zero_padding_1d, layer_zero_padding_2d,\n",
+            "    layer_zero_padding_3d, learning_rate_schedule_cosine_decay,\n",
+            "    learning_rate_schedule_cosine_decay_restarts,\n",
+            "    learning_rate_schedule_exponential_decay,\n",
+            "    learning_rate_schedule_inverse_time_decay,\n",
+            "    learning_rate_schedule_piecewise_constant_decay,\n",
+            "    learning_rate_schedule_polynomial_decay, loss_binary_crossentropy,\n",
+            "    loss_categorical_crossentropy, loss_categorical_hinge,\n",
+            "    loss_cosine_similarity, loss_hinge, loss_huber, loss_kl_divergence,\n",
+            "    loss_mean_absolute_error, loss_mean_absolute_percentage_error,\n",
+            "    loss_mean_squared_error, loss_mean_squared_logarithmic_error,\n",
+            "    loss_poisson, loss_sparse_categorical_crossentropy,\n",
+            "    loss_squared_hinge, mark_active, metric_auc,\n",
+            "    metric_binary_accuracy, metric_binary_crossentropy,\n",
+            "    metric_categorical_accuracy, metric_categorical_crossentropy,\n",
+            "    metric_categorical_hinge, metric_cosine_similarity,\n",
+            "    metric_false_negatives, metric_false_positives, metric_hinge,\n",
+            "    metric_mean, metric_mean_absolute_error,\n",
+            "    metric_mean_absolute_percentage_error, metric_mean_iou,\n",
+            "    metric_mean_squared_error, metric_mean_squared_logarithmic_error,\n",
+            "    metric_mean_wrapper, metric_poisson, metric_precision,\n",
+            "    metric_precision_at_recall, metric_recall,\n",
+            "    metric_recall_at_precision, metric_root_mean_squared_error,\n",
+            "    metric_sensitivity_at_specificity,\n",
+            "    metric_sparse_categorical_accuracy,\n",
+            "    metric_sparse_categorical_crossentropy,\n",
+            "    metric_sparse_top_k_categorical_accuracy,\n",
+            "    metric_specificity_at_sensitivity, metric_squared_hinge,\n",
+            "    metric_sum, metric_top_k_categorical_accuracy,\n",
+            "    metric_true_negatives, metric_true_positives, new_callback_class,\n",
+            "    new_layer_class, new_learning_rate_schedule_class, new_loss_class,\n",
+            "    new_metric_class, new_model_class, normalize, optimizer_adadelta,\n",
+            "    optimizer_adagrad, optimizer_adam, optimizer_adamax,\n",
+            "    optimizer_ftrl, optimizer_nadam, optimizer_rmsprop, optimizer_sgd,\n",
+            "    pad_sequences, pop_layer, predict_on_batch, regularizer_l1,\n",
+            "    regularizer_l1_l2, regularizer_l2, regularizer_orthogonal,\n",
+            "    set_vocabulary, set_weights, shape, test_on_batch,\n",
+            "    text_dataset_from_directory, time_distributed,\n",
+            "    timeseries_dataset_from_array, to_categorical, train_on_batch,\n",
+            "    unfreeze_weights, use_backend, with_custom_object_scope, zip_lists\n",
+            "\n",
+            "\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "for (k in 1:num_folds) {\n",
+        "  cat(\"fold: \", k, \"\\n\")\n",
+        "  indk <- cross_fitting_groups == k\n",
+        "\n",
+        "  ktrain <- usedata[!indk, ]\n",
+        "  ktest <- usedata[indk, ]\n",
+        "\n",
+        "  mean <- apply(xtrain, 2, mean)\n",
+        "  std <- apply(xtrain, 2, sd)\n",
+        "  xtrainNN <- scale(xtrain, center = mean, scale = std)\n",
+        "  xtestNN <- scale(xtest, center = mean, scale = std)\n",
+        "\n",
+        "  xtestNN <- xtestNN[, which(!is.nan(colMeans(xtrainNN)))]\n",
+        "  xtrainNN <- xtrainNN[, which(!is.nan(colMeans(xtrainNN)))]\n",
+        "\n",
+        "  # DNN 50/50/50/50, .5 dropout\n",
+        "  NNmodely <- keras_model_sequential()\n",
+        "  NNmodely %>%\n",
+        "    layer_dense(units = 50, activation = \"relu\", input_shape = c(ncol(xtrainNN))) %>%\n",
+        "    layer_dropout(rate = .5) %>%\n",
+        "    layer_dense(units = 50, activation = \"relu\") %>%\n",
+        "    layer_dropout(rate = .5) %>%\n",
+        "    layer_dense(units = 50, activation = \"relu\") %>%\n",
+        "    layer_dropout(rate = .5) %>%\n",
+        "    layer_dense(units = 50, activation = \"relu\") %>%\n",
+        "    layer_dropout(rate = .5) %>%\n",
+        "    layer_dense(units = 1)\n",
+        "\n",
+        "  NNmodely %>% compile(\n",
+        "    loss = \"mse\",\n",
+        "    optimizer = optimizer_rmsprop()\n",
+        "  )\n",
+        "\n",
+        "  fit_nn_model_y <- NNmodely %>% fit(\n",
+        "    xtrainNN, ytrain,\n",
+        "    epochs = 200, batch_size = 200,\n",
+        "    validation_split = .2, verbose = 0\n",
+        "  )\n",
+        "  yhat_r[indk, 6] <- ktest$logghomr - predict(NNmodely, xtestNN)\n",
+        "\n",
+        "  NNmodeld <- keras_model_sequential()\n",
+        "  NNmodeld %>%\n",
+        "    layer_dense(units = 50, activation = \"relu\", input_shape = c(ncol(xtrainNN))) %>%\n",
+        "    layer_dropout(rate = .5) %>%\n",
+        "    layer_dense(units = 50, activation = \"relu\") %>%\n",
+        "    layer_dropout(rate = .5) %>%\n",
+        "    layer_dense(units = 50, activation = \"relu\") %>%\n",
+        "    layer_dropout(rate = .5) %>%\n",
+        "    layer_dense(units = 50, activation = \"relu\") %>%\n",
+        "    layer_dropout(rate = .5) %>%\n",
+        "    layer_dense(units = 1)\n",
+        "\n",
+        "  NNmodeld %>% compile(\n",
+        "    loss = \"mse\",\n",
+        "    optimizer = optimizer_rmsprop()\n",
+        "  )\n",
+        "\n",
+        "  fit_nn_model_d <- NNmodeld %>% fit(\n",
+        "    xtrainNN, dtrain,\n",
+        "    epochs = 200, batch_size = 200,\n",
+        "    validation_split = .2, verbose = 0\n",
+        "  )\n",
+        "  dhat_r[indk, 6] <- ktest$logfssl - predict(NNmodeld, xtestNN)\n",
+        "\n",
+        "\n",
+        "  NNmodely <- keras_model_sequential()\n",
+        "  NNmodely %>%\n",
+        "    layer_dense(units = 50, activation = \"relu\", input_shape = c(ncol(xtrainNN))) %>%\n",
+        "    layer_dense(units = 50, activation = \"relu\") %>%\n",
+        "    layer_dense(units = 50, activation = \"relu\") %>%\n",
+        "    layer_dense(units = 50, activation = \"relu\") %>%\n",
+        "    layer_dense(units = 1)\n",
+        "\n",
+        "  NNmodely %>% compile(\n",
+        "    loss = \"mse\",\n",
+        "    optimizer = optimizer_rmsprop()\n",
+        "  )\n",
+        "\n",
+        "  early_stop <- callback_early_stopping(\n",
+        "    monitor = \"val_loss\", patience = 25,\n",
+        "    restore_best_weights = TRUE\n",
+        "  )\n",
+        "\n",
+        "  fit_nn_model_y <- NNmodely %>% fit(\n",
+        "    xtrainNN, ytrain,\n",
+        "    epochs = 200, batch_size = 200,\n",
+        "    validation_split = .2, verbose = 0,\n",
+        "    callbacks = list(early_stop)\n",
+        "  )\n",
+        "  yhat_r[indk, 7] <- ktest$logghomr - predict(NNmodely, xtestNN)\n",
+        "\n",
+        "  NNmodeld <- keras_model_sequential()\n",
+        "  NNmodeld %>%\n",
+        "    layer_dense(units = 50, activation = \"relu\", input_shape = c(ncol(xtrainNN))) %>%\n",
+        "    layer_dense(units = 50, activation = \"relu\") %>%\n",
+        "    layer_dense(units = 50, activation = \"relu\") %>%\n",
+        "    layer_dense(units = 50, activation = \"relu\") %>%\n",
+        "    layer_dense(units = 1)\n",
+        "\n",
+        "  NNmodeld %>% compile(\n",
+        "    loss = \"mse\",\n",
+        "    optimizer = optimizer_rmsprop()\n",
+        "  )\n",
+        "\n",
+        "  early_stop <- callback_early_stopping(\n",
+        "    monitor = \"val_loss\", patience = 25,\n",
+        "    restore_best_weights = TRUE\n",
+        "  )\n",
+        "\n",
+        "  fit_nn_model_d <- NNmodeld %>% fit(\n",
+        "    xtrainNN, dtrain,\n",
+        "    epochs = 200, batch_size = 200,\n",
+        "    validation_split = .2, verbose = 0,\n",
+        "    callbacks = list(early_stop)\n",
+        "  )\n",
+        "  dhat_r[indk, 7] <- ktest$logfssl - predict(NNmodeld, xtestNN)\n",
+        "  }"
+      ],
+      "metadata": {
+        "id": "gi5asqYjcqer",
+        "outputId": "426f35ad-e530-4cd9-e9da-840d335e440e",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 20,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "fold:  1 \n",
+            "fold:  2 \n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "for (k in 1:num_folds) {\n",
+        "  cat(\"fold: \", k, \"\\n\")\n",
+        "  indk <- cross_fitting_groups == k\n",
+        "\n",
+        "  ktrain <- usedata[!indk, ]\n",
+        "  ktest <- usedata[indk, ]\n",
+        "\n",
+        "  mean <- apply(xtrain, 2, mean)\n",
+        "  std <- apply(xtrain, 2, sd)\n",
+        "  xtrainNN <- scale(xtrain, center = mean, scale = std)\n",
+        "  xtestNN <- scale(xtest, center = mean, scale = std)\n",
+        "\n",
+        "  xtestNN <- xtestNN[, which(!is.nan(colMeans(xtrainNN)))]\n",
+        "  xtrainNN <- xtrainNN[, which(!is.nan(colMeans(xtrainNN)))]\n",
+        "\n",
+        "  # DNN 50/50/50/50, .5 dropout\n",
+        "  NNmodely <- keras_model_sequential()\n",
+        "  NNmodely %>%\n",
+        "    layer_dense(units = 75, activation = \"relu\", input_shape = c(ncol(xtrainNN))) %>%\n",
+        "    layer_dropout(rate = .5) %>%\n",
+        "    layer_dense(units = 75, activation = \"relu\") %>%\n",
+        "    layer_dropout(rate = .5) %>%\n",
+        "    layer_dense(units = 75, activation = \"relu\") %>%\n",
+        "    layer_dropout(rate = .5) %>%\n",
+        "    layer_dense(units = 75, activation = \"relu\") %>%\n",
+        "    layer_dropout(rate = .5) %>%\n",
+        "    layer_dense(units = 1)\n",
+        "\n",
+        "  NNmodely %>% compile(\n",
+        "    loss = \"mse\",\n",
+        "    optimizer = optimizer_rmsprop()\n",
+        "  )\n",
+        "\n",
+        "  fit_nn_model_y <- NNmodely %>% fit(\n",
+        "    xtrainNN, ytrain,\n",
+        "    epochs = 200, batch_size = 200,\n",
+        "    validation_split = .2, verbose = 0\n",
+        "  )\n",
+        "  yhat_r[indk, 8] <- ktest$logghomr - predict(NNmodely, xtestNN)\n",
+        "\n",
+        "  NNmodeld <- keras_model_sequential()\n",
+        "  NNmodeld %>%\n",
+        "    layer_dense(units = 75, activation = \"relu\", input_shape = c(ncol(xtrainNN))) %>%\n",
+        "    layer_dropout(rate = .5) %>%\n",
+        "    layer_dense(units = 75, activation = \"relu\") %>%\n",
+        "    layer_dropout(rate = .5) %>%\n",
+        "    layer_dense(units = 75, activation = \"relu\") %>%\n",
+        "    layer_dropout(rate = .5) %>%\n",
+        "    layer_dense(units = 75, activation = \"relu\") %>%\n",
+        "    layer_dropout(rate = .5) %>%\n",
+        "    layer_dense(units = 1)\n",
+        "\n",
+        "  NNmodeld %>% compile(\n",
+        "    loss = \"mse\",\n",
+        "    optimizer = optimizer_rmsprop()\n",
+        "  )\n",
+        "\n",
+        "  fit_nn_model_d <- NNmodeld %>% fit(\n",
+        "    xtrainNN, dtrain,\n",
+        "    epochs = 200, batch_size = 200,\n",
+        "    validation_split = .2, verbose = 0\n",
+        "  )\n",
+        "  dhat_r[indk, 8] <- ktest$logfssl - predict(NNmodeld, xtestNN)\n",
+        "  }"
+      ],
+      "metadata": {
+        "id": "l4VyEn5Zddub",
+        "outputId": "176cf0c0-af74-4aed-b025-6c4958c1d9f9",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 21,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "fold:  1 \n",
+            "fold:  2 \n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "yhat_r_trained <- yhat_r\n",
+        "dhat_r_trained <- dhat_r"
+      ],
+      "metadata": {
+        "id": "qWpsnSxdfxYl"
+      },
+      "execution_count": 24,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 27,
+      "metadata": {
+        "id": "u8n1149MolrR",
+        "vscode": {
+          "languageId": "r"
+        },
+        "outputId": "ba0bb2a9-e561-47fe-9110-c811f8fe28e4",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 1000
+        }
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "Warning message in summary.lm(x):\n",
+            "“essentially perfect fit: summary may be unreliable”\n",
+            "Warning message in summary.lm(x):\n",
+            "“essentially perfect fit: summary may be unreliable”\n",
+            "Warning message in summary.lm(x):\n",
+            "“essentially perfect fit: summary may be unreliable”\n",
+            "Warning message in summary.lm(x):\n",
+            "“essentially perfect fit: summary may be unreliable”\n",
+            "Warning message in summary.lm(x):\n",
+            "“essentially perfect fit: summary may be unreliable”\n",
+            "Warning message in summary.lm(x):\n",
+            "“essentially perfect fit: summary may be unreliable”\n",
+            "Warning message in summary.lm(x):\n",
+            "“essentially perfect fit: summary may be unreliable”\n",
+            "Warning message in summary.lm(x):\n",
+            "“essentially perfect fit: summary may be unreliable”\n",
+            "Warning message in summary.lm(x):\n",
+            "“essentially perfect fit: summary may be unreliable”\n"
+          ]
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/html": [
+              "<table class=\"dataframe\">\n",
+              "<caption>A xtable: 8 × 2</caption>\n",
+              "<thead>\n",
+              "\t<tr><th></th><th scope=col>RMSE Y</th><th scope=col>RMSE D</th></tr>\n",
+              "\t<tr><th></th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th></tr>\n",
+              "</thead>\n",
+              "<tbody>\n",
+              "\t<tr><th scope=row>OLS - No Controls</th><td>1.0961284</td><td>1.0961284</td></tr>\n",
+              "\t<tr><th scope=row>OLS - All</th><td>0.4556144</td><td>0.4556144</td></tr>\n",
+              "\t<tr><th scope=row>Lasso (CV)</th><td>0.4693936</td><td>0.4693936</td></tr>\n",
+              "\t<tr><th scope=row>Ridge (CV)</th><td>0.5350839</td><td>0.5350839</td></tr>\n",
+              "\t<tr><th scope=row>Elastic Net (.5,CV)</th><td>0.4798273</td><td>0.4798273</td></tr>\n",
+              "\t<tr><th scope=row>DNN - 50/50/50/50, dropout</th><td>0.9208259</td><td>0.9208259</td></tr>\n",
+              "\t<tr><th scope=row>DNN - 50/50/50/50, early stopping</th><td>0.9452246</td><td>0.9452246</td></tr>\n",
+              "\t<tr><th scope=row>DNN - 75/75/75/75, drop out</th><td>0.8951602</td><td>0.8951602</td></tr>\n",
+              "</tbody>\n",
+              "</table>\n"
+            ],
+            "text/markdown": "\nA xtable: 8 × 2\n\n| <!--/--> | RMSE Y &lt;dbl&gt; | RMSE D &lt;dbl&gt; |\n|---|---|---|\n| OLS - No Controls | 1.0961284 | 1.0961284 |\n| OLS - All | 0.4556144 | 0.4556144 |\n| Lasso (CV) | 0.4693936 | 0.4693936 |\n| Ridge (CV) | 0.5350839 | 0.5350839 |\n| Elastic Net (.5,CV) | 0.4798273 | 0.4798273 |\n| DNN - 50/50/50/50, dropout | 0.9208259 | 0.9208259 |\n| DNN - 50/50/50/50, early stopping | 0.9452246 | 0.9452246 |\n| DNN - 75/75/75/75, drop out | 0.8951602 | 0.8951602 |\n\n",
+            "text/latex": "A xtable: 8 × 2\n\\begin{tabular}{r|ll}\n  & RMSE Y & RMSE D\\\\\n  & <dbl> & <dbl>\\\\\n\\hline\n\tOLS - No Controls & 1.0961284 & 1.0961284\\\\\n\tOLS - All & 0.4556144 & 0.4556144\\\\\n\tLasso (CV) & 0.4693936 & 0.4693936\\\\\n\tRidge (CV) & 0.5350839 & 0.5350839\\\\\n\tElastic Net (.5,CV) & 0.4798273 & 0.4798273\\\\\n\tDNN - 50/50/50/50, dropout & 0.9208259 & 0.9208259\\\\\n\tDNN - 50/50/50/50, early stopping & 0.9452246 & 0.9452246\\\\\n\tDNN - 75/75/75/75, drop out & 0.8951602 & 0.8951602\\\\\n\\end{tabular}\n",
+            "text/plain": [
+              "                                  RMSE Y    RMSE D   \n",
+              "OLS - No Controls                 1.0961284 1.0961284\n",
+              "OLS - All                         0.4556144 0.4556144\n",
+              "Lasso (CV)                        0.4693936 0.4693936\n",
+              "Ridge (CV)                        0.5350839 0.5350839\n",
+              "Elastic Net (.5,CV)               0.4798273 0.4798273\n",
+              "DNN - 50/50/50/50, dropout        0.9208259 0.9208259\n",
+              "DNN - 50/50/50/50, early stopping 0.9452246 0.9452246\n",
+              "DNN - 75/75/75/75, drop out       0.8951602 0.8951602"
+            ]
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/html": [
+              "<table class=\"dataframe\">\n",
+              "<caption>A xtable: 10 × 2</caption>\n",
+              "<thead>\n",
+              "\t<tr><th></th><th scope=col>Point Estimate</th><th scope=col>Std. Error</th></tr>\n",
+              "\t<tr><th></th><th scope=col>&lt;dbl&gt;</th><th scope=col>&lt;dbl&gt;</th></tr>\n",
+              "</thead>\n",
+              "<tbody>\n",
+              "\t<tr><th scope=row>OLS - No Controls</th><td>1.000000</td><td>1.512454e-17</td></tr>\n",
+              "\t<tr><th scope=row>OLS - All</th><td>1.000000</td><td>1.276346e-18</td></tr>\n",
+              "\t<tr><th scope=row>Lasso (CV)</th><td>1.000000</td><td>1.968835e-18</td></tr>\n",
+              "\t<tr><th scope=row>Ridge (CV)</th><td>1.000000</td><td>1.972693e-18</td></tr>\n",
+              "\t<tr><th scope=row>Elastic Net (.5,CV)</th><td>1.000000</td><td>1.442003e-18</td></tr>\n",
+              "\t<tr><th scope=row>DNN - 50/50/50/50, dropout</th><td>1.000000</td><td>1.427223e-18</td></tr>\n",
+              "\t<tr><th scope=row>DNN - 50/50/50/50, early stopping</th><td>1.000000</td><td>1.958287e-18</td></tr>\n",
+              "\t<tr><th scope=row>DNN - 75/75/75/75, drop out</th><td>1.000000</td><td>1.242836e-18</td></tr>\n",
+              "\t<tr><th scope=row>Best</th><td>1.000000</td><td>1.276346e-18</td></tr>\n",
+              "\t<tr><th scope=row>Least Squares Model Average</th><td>1.001393</td><td>3.236314e-03</td></tr>\n",
+              "</tbody>\n",
+              "</table>\n"
+            ],
+            "text/markdown": "\nA xtable: 10 × 2\n\n| <!--/--> | Point Estimate &lt;dbl&gt; | Std. Error &lt;dbl&gt; |\n|---|---|---|\n| OLS - No Controls | 1.000000 | 1.512454e-17 |\n| OLS - All | 1.000000 | 1.276346e-18 |\n| Lasso (CV) | 1.000000 | 1.968835e-18 |\n| Ridge (CV) | 1.000000 | 1.972693e-18 |\n| Elastic Net (.5,CV) | 1.000000 | 1.442003e-18 |\n| DNN - 50/50/50/50, dropout | 1.000000 | 1.427223e-18 |\n| DNN - 50/50/50/50, early stopping | 1.000000 | 1.958287e-18 |\n| DNN - 75/75/75/75, drop out | 1.000000 | 1.242836e-18 |\n| Best | 1.000000 | 1.276346e-18 |\n| Least Squares Model Average | 1.001393 | 3.236314e-03 |\n\n",
+            "text/latex": "A xtable: 10 × 2\n\\begin{tabular}{r|ll}\n  & Point Estimate & Std. Error\\\\\n  & <dbl> & <dbl>\\\\\n\\hline\n\tOLS - No Controls & 1.000000 & 1.512454e-17\\\\\n\tOLS - All & 1.000000 & 1.276346e-18\\\\\n\tLasso (CV) & 1.000000 & 1.968835e-18\\\\\n\tRidge (CV) & 1.000000 & 1.972693e-18\\\\\n\tElastic Net (.5,CV) & 1.000000 & 1.442003e-18\\\\\n\tDNN - 50/50/50/50, dropout & 1.000000 & 1.427223e-18\\\\\n\tDNN - 50/50/50/50, early stopping & 1.000000 & 1.958287e-18\\\\\n\tDNN - 75/75/75/75, drop out & 1.000000 & 1.242836e-18\\\\\n\tBest & 1.000000 & 1.276346e-18\\\\\n\tLeast Squares Model Average & 1.001393 & 3.236314e-03\\\\\n\\end{tabular}\n",
+            "text/plain": [
+              "                                  Point Estimate Std. Error  \n",
+              "OLS - No Controls                 1.000000       1.512454e-17\n",
+              "OLS - All                         1.000000       1.276346e-18\n",
+              "Lasso (CV)                        1.000000       1.968835e-18\n",
+              "Ridge (CV)                        1.000000       1.972693e-18\n",
+              "Elastic Net (.5,CV)               1.000000       1.442003e-18\n",
+              "DNN - 50/50/50/50, dropout        1.000000       1.427223e-18\n",
+              "DNN - 50/50/50/50, early stopping 1.000000       1.958287e-18\n",
+              "DNN - 75/75/75/75, drop out       1.000000       1.242836e-18\n",
+              "Best                              1.000000       1.276346e-18\n",
+              "Least Squares Model Average       1.001393       3.236314e-03"
+            ]
+          },
+          "metadata": {}
+        }
+      ],
+      "source": [
+        "################################################################################\n",
+        "# Predictions done, now DML\n",
+        "trained_models <- 8\n",
+        "\n",
+        "yhat_r = yhat_r[, 1:trained_models]\n",
+        "dhat_r = yhat_r[, 1:trained_models]\n",
+        "\n",
+        "rmse_y <- sqrt(colMeans(yhat_r^2))\n",
+        "rmse_d <- sqrt(colMeans(dhat_r^2))\n",
+        "\n",
+        "# dml coefficient estimates\n",
+        "b_dml <- rep(NA, trained_models)\n",
+        "s_dml <- rep(NA, trained_models)\n",
+        "for (k in 1:trained_models) {\n",
+        "  lm_k <- lm(yhat_r[, k] ~ dhat_r[, k] - 1)\n",
+        "  v_k <- vcovHC(lm_k)\n",
+        "  b_dml[k] <- lm_k$coefficients\n",
+        "  s_dml[k] <- sqrt(v_k)\n",
+        "}\n",
+        "\n",
+        "# \"best\" coefficient estimate\n",
+        "lm_k <- lm(yhat_r[, which.min(rmse_y)] ~ dhat_r[, which.min(rmse_d)] - 1)\n",
+        "v_k <- vcovHC(lm_k)\n",
+        "b_dml[trained_models + 1] <- lm_k$coefficients\n",
+        "s_dml[trained_models + 1] <- sqrt(v_k)\n",
+        "\n",
+        "# ls model average\n",
+        "yhat <- usedata$logghomr - yhat_r\n",
+        "dhat <- usedata$logfssl - dhat_r\n",
+        "\n",
+        "ma_y <- lm(usedata$logghomr ~ yhat - 1)\n",
+        "ma_d <- lm(usedata$logfssl ~ dhat - 1)\n",
+        "weights_y <- ma_y$coefficients\n",
+        "weights_d <- ma_d$coefficients\n",
+        "lm_k <- lm(ma_y$residuals ~ ma_d$residuals - 1)\n",
+        "v_k <- vcovHC(lm_k)\n",
+        "b_dml[trained_models + 2] <- lm_k$coefficients\n",
+        "s_dml[trained_models + 2] <- sqrt(v_k)\n",
+        "\n",
+        "## Display results\n",
+        "table1 <- matrix(0, trained_models, 2)\n",
+        "table1[, 1] <- rmse_y\n",
+        "table1[, 2] <- rmse_d\n",
+        "colnames(table1) <- c(\"RMSE Y\", \"RMSE D\")\n",
+        "rownames(table1) <- c(\n",
+        "  \"OLS - No Controls\", \"OLS - All\",\n",
+        "  \"Lasso (CV)\", \"Ridge (CV)\", \"Elastic Net (.5,CV)\",\n",
+        "  \"DNN - 50/50/50/50, dropout\", \"DNN - 50/50/50/50, early stopping\",\n",
+        "  \"DNN - 75/75/75/75, drop out\"\n",
+        ")\n",
+        "tab1 <- xtable(table1, digits = c(0, 4, 4))\n",
+        "tab1\n",
+        "\n",
+        "table2 <- matrix(0, trained_models + 2, 2)\n",
+        "table2[, 1] <- b_dml\n",
+        "table2[, 2] <- s_dml\n",
+        "colnames(table2) <- c(\"Point Estimate\", \"Std. Error\")\n",
+        "rownames(table2) <- c(\n",
+        "  \"OLS - No Controls\", \"OLS - All\",\n",
+        "  \"Lasso (CV)\", \"Ridge (CV)\", \"Elastic Net (.5,CV)\",\n",
+        "  \"DNN - 50/50/50/50, dropout\", \"DNN - 50/50/50/50, early stopping\",\n",
+        "  \"DNN - 75/75/75/75, drop out\",\n",
+        "  \"Best\", \"Least Squares Model Average\"\n",
+        ")\n",
+        "tab2 <- xtable(table2, digits = c(0, 4, 4))\n",
+        "tab2"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "FjJjD8gRURmc",
+        "vscode": {
+          "languageId": "r"
+        }
+      },
+      "outputs": [],
+      "source": [
+        "print(xtable(table1, type = \"latex\"))\n",
+        "print(xtable(table2, type = \"latex\"))"
+      ]
+    }
+  ],
+  "metadata": {
+    "colab": {
+      "provenance": []
+    },
+    "kernelspec": {
+      "display_name": "R",
+      "name": "ir"
+    },
+    "language_info": {
+      "name": "R"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 0
+}
